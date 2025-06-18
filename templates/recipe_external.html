@@ -1,0 +1,58 @@
+{% extends "layout.html" %} {% block title %}{{ recipe.title }}{% endblock %} {%
+block content %}
+<h1>{{ recipe.title }}</h1>
+
+{% if recipe.image %}
+<img src="{{ recipe.image }}" class="img-fluid mb-3" alt="{{ recipe.title }}" />
+{% endif %}
+
+<p>
+  <strong>{{ _('servings') }}</strong> {{ recipe.servings }}<br />
+  <strong>{{ _('ready_in') }}</strong> {{ recipe.readyInMinutes }} minutes<br />
+  {% if recipe.sourceUrl %}
+  <a href="{{ recipe.sourceUrl }}" target="_blank">{{ _('view_source') }}</a>
+  {% endif %}
+</p>
+
+<h4>{{ _('ingredients') }}</h4>
+<ul>
+  {% for line in recipe.ingredients.splitlines() %}
+  <li>{{ line }}</li>
+  {% endfor %}
+</ul>
+
+<h4>{{ _('instructions') }}</h4>
+<ol>
+  {% for step in recipe.instructions.splitlines() %}
+  <li>{{ step }}</li>
+  {% endfor %}
+</ol>
+
+{% if session.user_id %} {% if is_saved %}
+<form
+  method="post"
+  action="{{ url_for('unsave_recipe', source=source, recipe_id=recipe_id) }}"
+>
+  <button type="submit" class="btn btn-outline-danger mt-3">
+    {{ _('remove_from_favorites') }}
+  </button>
+</form>
+{% else %}
+<form
+  method="post"
+  action="{{ url_for('save_recipe', source=source, recipe_id=recipe_id) }}"
+>
+  <button type="submit" class="btn btn-outline-primary mt-3">
+    {{ _('add_to_favorites') }}
+  </button>
+</form>
+{% endif %} {% else %}
+<p class="mt-3">
+  <a href="{{ url_for('auth.login') }}">{{ _('login') }}</a> {{ _('to_save') }}
+</p>
+{% endif %}
+
+<a href="{{ url_for('search') }}" class="btn btn-secondary mt-3">
+  {{ _('back_to_search') }}
+</a>
+{% endblock %}

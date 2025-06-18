@@ -19,5 +19,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Ignore PyInstaller build folders
+build/
+dist/
+
+# Ignore your app’s saved data files (optional)
+data/data_files/
+
 # Translations cache (if any)
 *.mo
