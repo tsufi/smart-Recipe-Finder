@@ -8,9 +8,9 @@ import json
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-from api.nutrition_parse import parse_nutrition_summary
+from services.nutrition_parse import parse_nutrition_summary
 from components.scrollable_frame import ScrollableFrame
-from data.storage import save_favorites, get_favorites, save_mealplan, get_mealplan
+from services.storage import save_favorites, get_favorites, save_mealplan, get_mealplan
 
 
 class RecipeTab:

@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ _('settings_title') }}{% endblock %}
+{% block content %}
+  <h1>{{ _('settings_heading') }}</h1>
+
+  <form method="post" action="{{ url_for('settings') }}">
+    <div class="mb-3">
+      <label for="language" class="form-label">{{ _('language') }}</label>
+      <select name="language" id="language" class="form-select">
+        {% for code, name in languages.items() %}
+          <option value="{{ code }}" {% if code == current_language %}selected{% endif %}>
+            {{ name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      {{ _('settings_save_button') }}
+    </button>
+  </form>
+
+  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">
+    {{ _('back_to_home') }}
+  </a>
+{% endblock %}

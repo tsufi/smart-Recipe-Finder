@@ -1,6 +1,6 @@
 #ui/layout.py
 import ttkbootstrap as ttk
-from ui.search import show_search
+from services.search import show_search
 from ui.favorites import show_favorites
 from ui.history import show_history
 from ui.meal_planner import show_meal_planner

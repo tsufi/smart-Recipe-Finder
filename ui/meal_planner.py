@@ -9,8 +9,8 @@ import webbrowser
 from fpdf import FPDF
 from openpyxl import Workbook
 
-from data.storage import get_mealplan, save_mealplan
-from api.recipes import get_recipe_info
+from services.storage import get_mealplan, save_mealplan
+from services.recipes import get_recipe_info
 from collections import defaultdict
 from data.ingredient_map import normalization_map
 

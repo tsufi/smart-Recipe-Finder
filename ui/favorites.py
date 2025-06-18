@@ -3,7 +3,7 @@ import tkinter as tk
 import tkinter.messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from api.recipes import get_recipe_info
+from services.recipes import get_recipe_info
 
 
 class FavoritesPanel:
@@ -47,7 +47,7 @@ class FavoritesPanel:
 
     def remove_favorite(self, fav):
         self.app.favorites = [f for f in self.app.favorites if f["id"] != fav["id"]]
-        from data.storage import save_favorites
+        from services.storage import save_favorites
         save_favorites(self.app.favorites)
         self.app.show_favorites()
 

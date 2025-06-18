@@ -1,0 +1,12 @@
+{% extends "layout.html" %} {% block title %}{{ _('logout_title') }}{% endblock
+%} {% block content %}
+<div class="text-center mt-5">
+  <h2>{{ _('logout_message') }}</h2>
+  <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">
+    {{ _('return_home') }}
+  </a>
+  <a href="{{ url_for('auth.login') }}" class="btn btn-link mt-3">
+    {{ _('login_again') }}
+  </a>
+</div>
+{% endblock %}

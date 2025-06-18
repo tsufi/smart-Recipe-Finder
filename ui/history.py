@@ -3,8 +3,8 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
 from components.scrollable_frame import ScrollableFrame
-from data.storage import get_history
-from ui.search import show_search
+from services.storage import get_history
+from services.search import show_search
 
 def show_history(app):
     app.clear_main()

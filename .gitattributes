@@ -1,0 +1,8 @@
+# Auto normalize line endings to LF
+* text=auto
+
+# Force Python and config files to use LF (even on Windows)
+*.py text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
