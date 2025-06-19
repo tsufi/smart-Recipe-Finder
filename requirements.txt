@@ -6,3 +6,4 @@ python.dotenv>=1.0.0
 ttkbootstrap>=1.10.1
 Flask-Mail>=0.9.1
 itsdangerous>=2.1.2
+flask-login

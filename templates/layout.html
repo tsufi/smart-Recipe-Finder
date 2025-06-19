@@ -20,54 +20,47 @@
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
         >
           <span class="navbar-toggler-icon"></span>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto align-items-center">
-            <!-- Home / Search / Favorites -->
+
+            <!-- Public links -->
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('index') }}">
-                {{ _('home') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('index') }}">{{ _('home') }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('search') }}">
-                {{ _('search') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('search') }}">{{ _('search') }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('favorites') }}">
-                {{ _('favorites') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('favorites') }}">{{ _('favorites') }}</a>
             </li>
 
-            <!-- Language dropdown -->
+            <!-- Admin dropdown (only for admins) -->
+            {% if current_user.is_authenticated and current_user.is_admin %}
             <li class="nav-item dropdown">
-              <a
-                class="nav-link dropdown-toggle"
-                href="#"
-                id="langDropdown"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
+              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                Admin
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
+                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">{{ _('Dashboard') }}</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin.user_list') }}">{{ _('User List') }}</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin.visit_logs') }}">{{ _('Visit Logs') }}</a></li>
+              </ul>
+            </li>
+            {% endif %}
+
+            <!-- Language Switcher -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
                 {{ LANGUAGES[current_language] }}
               </a>
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="langDropdown"
-              >
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="langDropdown">
                 {% for code, name in LANGUAGES.items() %}
                 <li>
-                  <a
-                    class="dropdown-item {% if current_language == code %}active{% endif %}"
-                    href="{{ url_for('set_language', lang=code) }}"
-                  >
+                  <a class="dropdown-item {% if current_language == code %}active{% endif %}" href="{{ url_for('set_language', lang=code) }}">
                     {{ name }}
                   </a>
                 </li>
@@ -76,22 +69,19 @@
             </li>
 
             <!-- Auth links -->
-            {% if session.user_id %}
+            {% if current_user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                {{ _('logout') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('auth.profile') }}">{{ _('profile') }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('auth.logout') }}">{{ _('logout') }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.login') }}">
-                {{ _('login') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('auth.login') }}">{{ _('login') }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.signup') }}">
-                {{ _('signup') }}
-              </a>
+              <a class="nav-link" href="{{ url_for('auth.signup') }}">{{ _('signup') }}</a>
             </li>
             {% endif %}
           </ul>
@@ -101,7 +91,7 @@
 
     <div class="container">
 
-      {# ── Flash message area ── #}
+      <!-- Flash messages -->
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
@@ -113,7 +103,7 @@
         {% endif %}
       {% endwith %}
 
-      {# ── Page-specific content ── #}
+      <!-- Page content -->
       {% block content %}{% endblock %}
     </div>
 

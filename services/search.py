@@ -14,7 +14,7 @@ MEALDB_URL = "https://www.themealdb.com/api/json/v1/1"
 def get_random_recipes(number=5):
     """
     Fetch up to `number` random recipes:
-      1) from Spoonacular’s /random endpoint
+      1) from Spoonacular’s /random endpoint (excluding Foodista)
       2) fallback to MealDB’s random.php
     Each result gets a .source field ("spoonacular" or "mealdb").
     """
@@ -29,9 +29,16 @@ def get_random_recipes(number=5):
         )
         resp.raise_for_status()
         data = resp.json().get("recipes", [])
+
         for r in data:
+            # Exclude if source is foodista or URL is foodista.com
+            if r.get("sourceName", "").lower() == "foodista":
+                continue
+            if "foodista.com" in (r.get("sourceUrl") or "").lower():
+                continue
             r["source"] = "spoonacular"
-        results.extend(data)
+            results.append(r)
+
     except Exception:
         # ignore and fallback below
         pass

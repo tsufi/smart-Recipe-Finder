@@ -1,4 +1,4 @@
-#api/nutrition_parse.py
+#servjice/nutrition_parse.py
 def parse_nutrition_data(data: dict) -> dict:
     result = {}
 

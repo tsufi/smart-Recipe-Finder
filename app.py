@@ -2,12 +2,20 @@ import os
 from datetime import datetime, timedelta
 
 from flask import (
-    Flask, render_template, request,
-    redirect, url_for, session
+    Flask, Blueprint, render_template, request,
+    redirect, url_for, session, g
 )
 from services.email_service import send_email
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer
+from planner import planner_bp  # adjust path as needed
+from flask_migrate import Migrate
+from flask.cli import with_appcontext
+from flask_login import current_user, LoginManager, login_required
+from models import log_event
+from flask_babel import _
+import click
+
 
 # 1) Load environment vars
 load_dotenv()
@@ -60,6 +68,20 @@ from services.search import (
     matches_diet
 )
 
+app.register_blueprint(planner_bp)
+migrate = Migrate(app, db)
+
+from admin import admin_bp
+app.register_blueprint(admin_bp)
+
+login_manager = LoginManager()
+login_manager.login_view = "auth.login"  # Adjust route name if different
+login_manager.init_app(app)  # <-- this is what you're missing
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 # —— LANGUAGE SUPPORT —— #
 
 # List of supported languages
@@ -75,7 +97,11 @@ LANGUAGES = {
 @app.route("/set_language/<lang>")
 def set_language(lang):
     if lang in LANGUAGES:
-        session['language'] = lang
+        if current_user.is_authenticated:
+            current_user.preferred_language = lang
+            db.session.commit()
+        else:
+            session['language'] = lang
     return redirect(request.referrer or url_for('index'))
 
 # 9) Instantiate Translator
@@ -84,19 +110,33 @@ translator = Translator()  # defaults to ./lang/{code}.json
 
 # 10) Load per-request language
 @app.before_request
-def _load_language():
-    lang = session.get("language", "en")
-    translator.load_language(lang)
+def apply_language_selection():
+    if current_user.is_authenticated:
+        g.language = current_user.preferred_language or 'en'
+    else:
+        g.language = (
+            session.get('language') or
+            request.accept_languages.best_match(list(LANGUAGES.keys())) or
+            'en'
+        )
+    translator.load_language(g.language)
+    
+   
+def track_page_visit():
+    if not request.path.startswith("/static") and request.endpoint != "static":
+        user_id = current_user.id if current_user.is_authenticated else None
+        log_event("page_visit", user_id=user_id, details=request.path)
 
 # 11) Inject helpers into templates
 @app.context_processor
 def _inject_globals():
     return {
-        "_": translator._,        # translation func
-        "LANGUAGES": LANGUAGES,   # for your navbar dropdown
-        "current_language": session.get("language", "en"),
+        "_": translator._,
+        "LANGUAGES": LANGUAGES,
+        "current_language": getattr(g, "language", "en"),
+        "request": request
     }
-
+    
 # —— Homepage cache —— #
 _cached_recipes = []
 _cached_time    = None
@@ -137,25 +177,28 @@ def view_external(recipe_id):
         "title":          info.get("title") or info.get("name", ""),
         "image":          info.get("image", ""),
         "ingredients":    "\n".join(
-                              f"{i.get('amount','')} {i.get('unit','')} {i.get('name','')}".strip()
-                              for i in info.get("extendedIngredients", [])
-                          ),
+            f"{i.get('amount','')} {i.get('unit','')} {i.get('name','')}".strip()
+            for i in info.get("extendedIngredients", [])
+        ),
         "instructions":   "\n".join(
-                              step.get("step","")
-                              for block in info.get("analyzedInstructions", [])
-                              for step in block.get("steps", [])
-                          ) or info.get("strInstructions",""),
+            step.get("step", "")
+            for block in info.get("analyzedInstructions", [])
+            for step in block.get("steps", [])
+        ) or info.get("strInstructions", ""),
         "readyInMinutes": info.get("readyInMinutes", 0),
         "servings":       info.get("servings", 1),
-        "sourceUrl":      info.get("sourceUrl") or info.get("strSource","")
+        "sourceUrl":      info.get("sourceUrl") or info.get("strSource", ""),
+        "creditsText":    info.get("creditsText", ""),
+        "imageSourceUrl": info.get("imageSourceUrl", "")
     }
 
     source = "spoonacular"
     is_saved = False
-    if 'user_id' in session:
+
+    if current_user.is_authenticated:
         is_saved = bool(
             SavedRecipe.query.filter_by(
-                user_id=session['user_id'],
+                user_id=current_user.id,
                 api_source=source,
                 recipe_id=recipe_id
             ).first()
@@ -166,38 +209,39 @@ def view_external(recipe_id):
         recipe=recipe,
         recipe_id=recipe_id,
         source=source,
-        is_saved=is_saved
+        is_saved=is_saved,
+        now=datetime.now(),
+        timedelta=timedelta
     )
 
 @app.route("/save/<string:source>/<int:recipe_id>", methods=["POST"])
+@login_required
 def save_recipe(source, recipe_id):
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     info = get_recipe_info(recipe_id)
     if not info:
         return render_template("error.html", message=_("error_default")), 400
     exists = SavedRecipe.query.filter_by(
-        user_id=session['user_id'],
+        user_id=current_user.id,
         api_source=source,
         recipe_id=recipe_id
     ).first()
     if not exists:
         sr = SavedRecipe(
-            user_id=session['user_id'],
+            user_id=current_user.id,
             api_source=source,
             recipe_id=recipe_id,
-            title=info.get("title") or info.get("name","")
+            title=info.get("title") or info.get("name", "")
         )
         db.session.add(sr)
         db.session.commit()
     return redirect(request.referrer or url_for('index'))
 
+
 @app.route("/unsave/<string:source>/<int:recipe_id>", methods=["POST"])
+@login_required
 def unsave_recipe(source, recipe_id):
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     entry = SavedRecipe.query.filter_by(
-        user_id=session['user_id'],
+        user_id=current_user.id,
         api_source=source,
         recipe_id=recipe_id
     ).first()
@@ -206,12 +250,12 @@ def unsave_recipe(source, recipe_id):
         db.session.commit()
     return redirect(request.referrer or url_for('favorites'))
 
+
 @app.route("/favorites")
+@login_required
 def favorites():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     saved_entries = SavedRecipe.query.filter_by(
-        user_id=session['user_id']
+        user_id=current_user.id
     ).order_by(SavedRecipe.saved_at.desc()).all()
 
     recipes = []
@@ -222,11 +266,12 @@ def favorites():
         recipes.append({
             "id":       e.recipe_id,
             "title":    info.get("title") or info.get("name", ""),
-            "image":    info.get("image",""),
+            "image":    info.get("image", ""),
             "saved_at": e.saved_at,
         })
 
     return render_template("favorites.html", recipes=recipes)
+
 
 @app.route("/test-email")
 def test_email():
@@ -242,6 +287,33 @@ def test_email():
             return f"❌ Mailgun API failed: {response.status_code} - {response.text}"
     except Exception as e:
         return f"❌ Exception: {str(e)}"
+    
+@app.route("/mealplan/add", methods=["POST"])
+@login_required
+def add_to_mealplan():
+    day = request.form.get("day")
+    meal = request.form.get("meal_type")
+    recipe_id = request.form.get("recipe_id")
+    title = request.form.get("recipe_title")
+
+    if not (day and meal and recipe_id and title):
+        flash(_("invalid_day"), "danger")
+        return redirect(url_for("index"))
+
+    plan = MealPlan(
+        user_id=current_user.id,
+        day=day,
+        meal_type=meal,
+        recipe_id=recipe_id,
+        recipe_title=title
+    )
+    db.session.add(plan)
+    db.session.commit()
+
+    flash(_("mealplan_saved"), "success")
+    return redirect(url_for("planner.view_meal_plan"))
+
+
 
 # (You can still keep your /settings if you like, but language now lives in the navbar)
 

@@ -1,9 +1,7 @@
 import os
-from flask import (
-    Blueprint, render_template, request, redirect,
-    url_for, flash, session
-)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_mail import Mail, Message
+from flask_login import login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -13,7 +11,7 @@ auth_bp = Blueprint("auth", __name__)
 mail = Mail()
 ts = None  # Token serializer
 
-# --- One-time Flask app config hook ---
+# --- Flask App Config Hook ---
 @auth_bp.record_once
 def on_register(state):
     app = state.app
@@ -23,7 +21,7 @@ def on_register(state):
         MAIL_USE_TLS        = True,
         MAIL_USERNAME       = os.getenv("MAIL_USERNAME"),
         MAIL_PASSWORD       = os.getenv("MAIL_PASSWORD"),
-        MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER")
+        MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER"),
     )
     mail.init_app(app)
 
@@ -95,7 +93,7 @@ def login():
             if not user.is_verified:
                 flash("Please verify your email before logging in.", "warning")
                 return render_template("login.html")
-            session["user_id"] = user.id
+            login_user(user)
             return redirect(url_for("index"))
 
         flash("Invalid credentials.", "danger")
@@ -103,8 +101,9 @@ def login():
 
 # --- Logout ---
 @auth_bp.route("/logout")
+@login_required
 def logout():
-    session.pop("user_id", None)
+    logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
 
@@ -153,7 +152,7 @@ def resend_verification():
 
     return render_template("resend_verification.html")
 
-# --- Password Reset ---
+# --- Password Reset Request ---
 @auth_bp.route("/reset_password", methods=["GET", "POST"])
 def reset_request():
     if request.method == "POST":
@@ -175,11 +174,11 @@ def reset_request():
 
     return render_template("reset_request.html")
 
+# --- Password Reset Form ---
 @auth_bp.route("/reset/<token>", methods=["GET", "POST"])
 def reset_password(token):
-    try:
-        email = ts.loads(token, salt="password-reset-salt", max_age=3600)
-    except Exception as e:
+    email = verify_token(token, "password-reset-salt")
+    if not email:
         flash("Invalid or expired token.", "danger")
         return redirect(url_for("auth.reset_request"))
 
@@ -189,7 +188,7 @@ def reset_password(token):
 
         if not password or not confirm:
             flash("Please fill out all fields.", "danger")
-            return render_template("reset_token.html")  # Match your filename
+            return render_template("reset_token.html")
 
         if password != confirm:
             flash("Passwords do not match.", "danger")
@@ -207,3 +206,30 @@ def reset_password(token):
 
     return render_template("reset_token.html")
 
+@auth_bp.route("/profile")
+@login_required
+def profile():
+    return render_template("profile.html", user=current_user)
+
+@auth_bp.route("/change_password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current_password = request.form.get("current_password")
+        new_password = request.form.get("new_password")
+        confirm_password = request.form.get("confirm_password")
+
+        if not current_user.check_password(current_password):
+            flash("Current password is incorrect.", "danger")
+            return render_template("change_password.html")
+
+        if new_password != confirm_password:
+            flash("New passwords do not match.", "danger")
+            return render_template("change_password.html")
+
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash("Password updated successfully.", "success")
+        return redirect(url_for("index"))
+
+    return render_template("change_password.html")

@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}Confirm Delete{% endblock %}
+{% block content %}
+<h2>Confirm Delete</h2>
+<p>To delete user <strong>{{ user.username }}</strong>, confirm below:</p>
+
+<form method="POST">
+  <div class="mb-3">
+    <label for="username" class="form-label">Confirm Username</label>
+    <input type="text" class="form-control" name="username" required>
+  </div>
+  <div class="mb-3">
+    <label for="admin_password" class="form-label">Admin Password</label>
+    <input type="password" class="form-control" name="admin_password" required>
+  </div>
+  <button type="submit" class="btn btn-danger">Confirm Delete</button>
+  <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

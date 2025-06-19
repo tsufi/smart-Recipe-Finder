@@ -1,58 +1,150 @@
-{% extends "layout.html" %} {% block title %}{{ recipe.title }}{% endblock %} {%
-block content %}
-<h1>{{ recipe.title }}</h1>
+{% extends "layout.html" %}
 
-{% if recipe.image %}
-<img src="{{ recipe.image }}" class="img-fluid mb-3" alt="{{ recipe.title }}" />
-{% endif %}
+{% block title %}
+  {{ recipe.title }}
+{% endblock %}
 
-<p>
-  <strong>{{ _('servings') }}</strong> {{ recipe.servings }}<br />
-  <strong>{{ _('ready_in') }}</strong> {{ recipe.readyInMinutes }} minutes<br />
-  {% if recipe.sourceUrl %}
-  <a href="{{ recipe.sourceUrl }}" target="_blank">{{ _('view_source') }}</a>
+{% block content %}
+  <h1>{{ recipe.title }}</h1>
+
+    {% if recipe.image %}
+    <img src="{{ recipe.image }}" class="img-fluid mb-2" alt="{{ recipe.title }}" />
+    {% if recipe.creditsText %}
+      <div class="text-muted small">
+        {{ _('image_credit') }}:
+        {% if recipe.imageSourceUrl %}
+          <a href="{{ recipe.imageSourceUrl }}" target="_blank">{{ recipe.creditsText }}</a>
+        {% else %}
+          {{ recipe.creditsText }}
+        {% endif %}
+      </div>
+    {% endif %}
   {% endif %}
-</p>
+  <p>
+    <strong>{{ _('servings') }}:</strong> {{ recipe.servings }}<br>
+    <strong>{{ _('ready_in') }}:</strong> {{ recipe.readyInMinutes }} {{ _('minutes') }}<br>
+    {% if recipe.sourceUrl %}
+      <a href="{{ recipe.sourceUrl }}" target="_blank">{{ _('view_source') }}</a>
+    {% endif %}
+  </p>
 
-<h4>{{ _('ingredients') }}</h4>
-<ul>
-  {% for line in recipe.ingredients.splitlines() %}
-  <li>{{ line }}</li>
-  {% endfor %}
-</ul>
+  <h4>{{ _('ingredients') }}</h4>
+  <ul>
+    {% for line in recipe.ingredients.splitlines() %}
+      <li>{{ line }}</li>
+    {% endfor %}
+  </ul>
 
-<h4>{{ _('instructions') }}</h4>
-<ol>
-  {% for step in recipe.instructions.splitlines() %}
-  <li>{{ step }}</li>
-  {% endfor %}
-</ol>
+  <h4>{{ _('instructions') }}</h4>
+  <ol>
+    {% for step in recipe.instructions.splitlines() %}
+      <li>{{ step }}</li>
+    {% endfor %}
+  </ol>
 
-{% if session.user_id %} {% if is_saved %}
-<form
-  method="post"
-  action="{{ url_for('unsave_recipe', source=source, recipe_id=recipe_id) }}"
->
-  <button type="submit" class="btn btn-outline-danger mt-3">
-    {{ _('remove_from_favorites') }}
-  </button>
-</form>
-{% else %}
-<form
-  method="post"
-  action="{{ url_for('save_recipe', source=source, recipe_id=recipe_id) }}"
->
-  <button type="submit" class="btn btn-outline-primary mt-3">
-    {{ _('add_to_favorites') }}
-  </button>
-</form>
-{% endif %} {% else %}
-<p class="mt-3">
-  <a href="{{ url_for('auth.login') }}">{{ _('login') }}</a> {{ _('to_save') }}
-</p>
-{% endif %}
+  {% if current_user.is_authenticated %}
+    {% if is_saved %}
+      <form method="post" action="{{ url_for('unsave_recipe', source=source, recipe_id=recipe_id) }}">
+        <button type="submit" class="btn btn-outline-danger mt-3">
+          {{ _('remove_from_favorites') }}
+        </button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('save_recipe', source=source, recipe_id=recipe_id) }}">
+        <button type="submit" class="btn btn-outline-primary mt-3">
+          {{ _('add_to_favorites') }}
+        </button>
+      </form>
+    {% endif %}
 
-<a href="{{ url_for('search') }}" class="btn btn-secondary mt-3">
-  {{ _('back_to_search') }}
-</a>
+    <!-- Trigger Meal Plan Modal -->
+    <button id="addToMealPlanBtn" class="btn btn-outline-success mt-3">
+      {{ _('add_to_meal_plan') }}
+    </button>
+
+    <!-- Meal Plan Modal -->
+    <div id="mealPlanModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <span id="closeModal" class="close">&times;</span>
+        <h5>{{ _('choose_day') }} & {{ _('choose_meal') }}</h5>
+        <form method="POST" action="{{ url_for('planner.planner') }}">
+          <input type="hidden" name="recipe_id" value="{{ recipe.id }}" />
+          <div class="form-group">
+            <label for="date">{{ _('choose_day') }}</label>
+            <select name="date" class="form-control" required>
+              {% set weekday_labels = [_('Monday'), _('Tuesday'), _('Wednesday'), _('Thursday'), _('Friday'), _('Saturday'), _('Sunday')] %}
+              <select name="day">
+              {% for i in range(7) %}
+                {% set date_obj = now - timedelta(days=now.weekday()) + timedelta(days=i) %}
+                <option value="{{ date_obj.strftime('%d-%m-%Y') }}">
+                  {{ date_obj.strftime('%A %d-%m-%Y') }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group mt-2">
+            <label for="meal_type">{{ _('choose_meal') }}</label>
+            <select name="meal_type" class="form-control" required>
+              <option value="breakfast">{{ _('breakfast') }}</option>
+              <option value="lunch">{{ _('lunch') }}</option>
+              <option value="dinner">{{ _('dinner') }}</option>
+              <option value="snack">{{ _('snack') }}</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary mt-3">{{ _('add_meal') }}</button>
+        </form>
+      </div>
+    </div>
+
+    <style>
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+      }
+      .modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 400px;
+      }
+      .close {
+        float: right;
+        font-size: 1.5rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+    </style>
+
+    <script>
+      document.getElementById('addToMealPlanBtn').onclick = function () {
+        document.getElementById('mealPlanModal').style.display = 'block';
+      };
+      document.getElementById('closeModal').onclick = function () {
+        document.getElementById('mealPlanModal').style.display = 'none';
+      };
+      window.onclick = function (event) {
+        if (event.target == document.getElementById('mealPlanModal')) {
+          document.getElementById('mealPlanModal').style.display = 'none';
+        }
+      };
+    </script>
+
+  {% else %}
+    <p class="mt-3">
+      <a href="{{ url_for('auth.login') }}">{{ _('login') }}</a> {{ _('to_save') }}
+    </p>
+  {% endif %}
+
+  <a href="{{ url_for('search') }}" class="btn btn-secondary mt-3">
+    {{ _('back_to_search') }}
+  </a>
 {% endblock %}

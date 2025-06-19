@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h2>👥 {{ _('All Users') }}</h2>
+
+<table class="table table-bordered table-hover">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th>
+      <th>{{ _('Username') }}</th>
+      <th>{{ _('Email') }}</th>
+      <th>{{ _('Verified') }}</th>
+      <th>{{ _('Admin') }}</th>
+      <th>{{ _('Owner') }}</th>
+      <th>{{ _('Joined') }}</th>
+      {% if current_user.is_owner %}
+        <th>{{ _('Actions') }}</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.username }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ "✅" if u.is_verified else "❌" }}</td>
+      <td>{{ "🛡️" if u.is_admin else "–" }}</td>
+      <td>{{ "👑" if u.is_owner else "–" }}</td>
+      <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else "N/A" }}</td>
+
+      {% if current_user.is_owner %}
+      <td>
+        {% if not u.is_owner %}
+          <!-- Delete -->
+          <button class="btn btn-danger btn-sm"
+            onclick="openAdminModal('{{ url_for('admin.delete_user', user_id=u.id) }}', '{{ _('Delete user') }}', '{{ u.username }}')">
+            🗑️ {{ _('Delete') }}
+          </button>
+
+          <!-- Toggle Admin -->
+          {% set toggle_label = "🔽 " + _('Demote') if u.is_admin else "🔼 " + _('Promote') %}
+          <button class="btn btn-warning btn-sm"
+            onclick="openAdminModal('{{ url_for('admin.toggle_admin', user_id=u.id) }}', '{{ _('Demote') if u.is_admin else _('Promote') }}', '{{ u.username }}')">
+            {{ toggle_label }}
+          </button>
+
+          <!-- Make Owner -->
+          <button class="btn btn-dark btn-sm"
+            onclick="openAdminModal('{{ url_for('admin.make_owner', user_id=u.id) }}', '{{ _('Transfer ownership to') }}', '{{ u.username }}')">
+            👑 {{ _('Make Owner') }}
+          </button>
+        {% else %}
+          <span class="text-muted">{{ _('Owner') }}</span>
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- 🔒 Modal -->
+<div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="adminActionForm" method="POST">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmActionLabel">{{ _('Confirm Admin Action') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+        </div>
+        <div class="modal-body">
+          <p id="modalMessage">{{ _('Are you sure you want to perform this action?') }}</p>
+          <div class="mb-3">
+            <label for="adminPassword" class="form-label">{{ _('Enter your admin password') }}</label>
+            <input type="password" class="form-control" id="adminPassword" name="admin_password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">{{ _('Confirm') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 🚀 Script -->
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+
+{% endblock %}

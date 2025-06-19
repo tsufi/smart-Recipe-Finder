@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block title %}Meal Planner{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">🗓️ Weekly Meal Planner</h2>
+
+  <form method="POST" class="row g-3">
+    <div class="col-md-3">
+      <label for="date" class="form-label">Select Date</label>
+      <input type="date" class="form-control" name="date" required>
+    </div>
+    <div class="col-md-3">
+      <label for="meal_type" class="form-label">Meal Type</label>
+      <select class="form-select" name="meal_type" required>
+        <option value="breakfast">Breakfast</option>
+        <option value="lunch">Lunch</option>
+        <option value="dinner">Dinner</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label for="recipe_id" class="form-label">Recipe</label>
+      <select class="form-select" name="recipe_id" required>
+        {% for recipe in recipes %}
+        <option value="{{ recipe.id }}">{{ recipe.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Add Meal</button>
+    </div>
+  </form>
+
+  <hr class="my-5">
+
+  <div class="row text-center fw-bold">
+    {% for date in week_dates %}
+      <div class="col border p-2 bg-light">
+        {{ date.strftime('%A') }}<br>{{ date.strftime('%Y-%m-%d') }}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+  <div class="row text-center">
+    {% for date in week_dates %}
+      {% set planned = meals | selectattr("date", "equalto", date.date()) 
+                             | selectattr("meal_type", "equalto", meal_type) 
+                             | list %}
+      <div class="col border p-3">
+        <strong>{{ meal_type.capitalize() }}</strong><br>
+        {% if planned %}
+          {% for meal in planned %}
+            <div class="badge bg-success">{{ meal.recipe.title }}</div>
+          {% endfor %}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>📄 Recent Page Visits</h2>
+<table class="table">
+    <thead>
+        <tr><th>Time</th><th>User</th><th>Event</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ log.user.username if log.user else "Guest" }}</td>
+            <td>{{ log.event_type }}</td>
+            <td>{{ log.details }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

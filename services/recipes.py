@@ -1,7 +1,5 @@
-#api/recipes.py
 import requests
 import os
-import json
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 
@@ -41,7 +39,7 @@ def find_by_ingredients(ingredients, number=10):
 
 
 # --------------------------------
-# Original Spoonacular integration
+# Spoonacular integration (filters Foodista)
 # --------------------------------
 def _spoonacular_search(ingredients, number=10):
     url = "https://api.spoonacular.com/recipes/findByIngredients"
@@ -53,10 +51,33 @@ def _spoonacular_search(ingredients, number=10):
         "apiKey": API_KEY
     }
     r = requests.get(url, params=params, timeout=8)
-    if r.status_code == 200:
-        return r.json()
-    print(f"[ERROR] Spoonacular responded with {r.status_code}: {r.text}")
-    return []
+    if r.status_code != 200:
+        print(f"[ERROR] Spoonacular responded with {r.status_code}: {r.text}")
+        return []
+
+    raw_results = r.json()
+    filtered = []
+
+    # Fetch detailed info for each recipe to get `sourceName`
+    for r in raw_results:
+        rid = r.get("id")
+        if not rid:
+            continue
+
+        detail = get_recipe_info(rid)
+        if not detail:
+            continue
+
+        source_name = (detail.get("sourceName") or "").lower()
+        source_url = (detail.get("sourceUrl") or "").lower()
+
+        if "foodista" in source_name or "foodista" in source_url:
+            continue  # skip foodista
+
+        detail["source"] = "spoonacular"
+        filtered.append(detail)
+
+    return filtered
 
 
 def get_recipe_info(recipe_id):
@@ -89,23 +110,39 @@ def matches_diet(info, selected):
 
 
 # ------------------------------
-# Fallback: TheMealDB
+# Fallback: TheMealDB (with filters)
 # ------------------------------
-
 def fallback_themealdb(query):
     print("[INFO] Using TheMealDB fallback...")
     try:
         url = f"https://www.themealdb.com/api/json/v1/1/search.php?s={query}"
         r = requests.get(url, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            meals = data.get("meals", [])
-            return [convert_mealdb_recipe(meal) for meal in meals if meal]
-        else:
+        if r.status_code != 200:
             print(f"[ERROR] TheMealDB error: {r.status_code}")
+            return []
+
+        data = r.json()
+        meals = data.get("meals", [])
+        filtered = [
+            convert_mealdb_recipe(meal)
+            for meal in meals
+            if meal and _is_valid_mealdb(meal)
+        ]
+        return filtered
+
     except Exception as e:
         print("[ERROR] TheMealDB fallback failed:", e)
     return []
+
+
+def _is_valid_mealdb(meal):
+    # Filter out meals with missing fields or junk
+    return (
+        meal.get("strInstructions") and
+        meal.get("strMealThumb") and
+        meal.get("strMeal") and
+        any(meal.get(f"strIngredient{i}") for i in range(1, 21))
+    )
 
 
 def convert_mealdb_recipe(meal):
@@ -114,7 +151,7 @@ def convert_mealdb_recipe(meal):
     for i in range(1, 21):
         ing = meal.get(f"strIngredient{i}")
         if ing and ing.strip():
-            ingredients.append({"original": ing})
+            ingredients.append({"original": ing.strip()})
 
     return {
         "id": meal.get("idMeal"),
@@ -131,5 +168,6 @@ def convert_mealdb_recipe(meal):
                 {"number": idx + 1, "step": s.strip()}
                 for idx, s in enumerate(steps.split(". ")) if s.strip()
             ]
-        }]
+        }],
+        "source": "mealdb"
     }

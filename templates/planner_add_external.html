@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block title %}{{ _('add_meal') }}{% endblock %}
+{% block content %}
+<h2>{{ _('add_meal') }}</h2>
+<form method="post" action="{{ url_for('add_to_mealplan') }}">
+  <input type="hidden" name="source" value="{{ source }}">
+  <input type="hidden" name="recipe_id" value="{{ recipe_id }}">
+
+  <div class="mb-3">
+    <label for="day">{{ _('choose_day') }}</label>
+    <select name="day" id="day" class="form-select">
+      <option value="monday">Monday</option>
+      <option value="tuesday">Tuesday</option>
+      <option value="wednesday">Wednesday</option>
+      <option value="thursday">Thursday</option>
+      <option value="friday">Friday</option>
+      <option value="saturday">Saturday</option>
+      <option value="sunday">Sunday</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="meal">{{ _('choose_meal') }}</label>
+    <select name="meal" id="meal" class="form-select">
+      <option value="breakfast">Breakfast</option>
+      <option value="lunch">Lunch</option>
+      <option value="dinner">Dinner</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-success">{{ _('add_meal') }}</button>
+</form>
+{% endblock %}
